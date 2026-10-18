@@ -1,6 +1,6 @@
 {
   "name": "dsh-maestro5",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "DSH Maestro5：主控 + L1–L5 五档难度子智能体的团队模式，安装即得配置界面",
   "type": "module",
   "license": "MIT",

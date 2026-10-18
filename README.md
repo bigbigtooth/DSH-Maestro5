@@ -99,7 +99,7 @@ dsh plugin --profile web add dsh-maestro5
 dsh plugin --profile desktop add github:bigbigtooth/DSH-Maestro5
 
 # 或从 Releases 的打包文件安装（固定版本、可离线分发）
-dsh plugin --profile desktop add https://github.com/bigbigtooth/DSH-Maestro5/releases/latest/download/dsh-maestro5-1.0.0.tgz
+dsh plugin --profile desktop add https://github.com/bigbigtooth/DSH-Maestro5/releases/latest/download/dsh-maestro5-0.1.0.tgz
 ```
 
 #### 方式 D：本地目录（开发态）

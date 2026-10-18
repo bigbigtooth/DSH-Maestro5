@@ -88,7 +88,7 @@ dsh plugin --profile web add dsh-maestro5       # standalone dsh web profile
 dsh plugin --profile desktop add github:bigbigtooth/DSH-Maestro5
 
 # or from a release tarball (pinned, works offline)
-dsh plugin --profile desktop add https://github.com/bigbigtooth/DSH-Maestro5/releases/latest/download/dsh-maestro5-1.0.0.tgz
+dsh plugin --profile desktop add https://github.com/bigbigtooth/DSH-Maestro5/releases/latest/download/dsh-maestro5-0.1.0.tgz
 ```
 
 **D. Local checkout (development):**
