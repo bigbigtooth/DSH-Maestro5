@@ -1,0 +1,556 @@
+# =============================================================================
+# DSH Maestro5 — 主控 + L1–L5 五档难度子智能体
+# -----------------------------------------------------------------------------
+# 安装本插件即自动获得：
+#   1) 一个新的会话模式「团队主控」（preset id: team）
+#   2) L1–L5 五档难度子智能体（preset id: team-l1 … team-l5）
+#   3) 一个可在「设置 → 团队模式」里配置每档模型的设置页
+#
+# 结构：
+#   maestro-levels  根层设置行（Host 插件 dsh-maestro5）：
+#                   L1–L5 每档的 provider / model / 思考强度（volatile，设置页可改）
+#   team            主控 Lead preset：拆解任务 → 选档分派 → 汇总复核 → 交付
+#   team-l1 … l5    五个档位 preset（人设 + 全套执行工具；模型来自 maestro-levels）
+# =============================================================================
+
+# =============================================================================
+# 0. 设置行：L1–L5 档位的模型路由（volatile 配置）
+#    Web: 设置 → 团队模式；或 插件 → DSH Maestro5 → 行 maestro-levels → Configure
+#    保存写入 profile cordis.patch.yml；preset 启动时读取，因此保存后需重启 DSH。
+# =============================================================================
+- insert:
+    - id: maestro-levels
+      name: 'dsh-maestro5'
+      config:
+        levels:
+          - { level: l1, label: 团队·L1 极简执行, provider: deepseek-official, model: deepseek-flash, reasoningEffort: off }
+          - { level: l2, label: 团队·L2 常规执行, provider: deepseek-official, model: deepseek-flash, reasoningEffort: low }
+          - { level: l3, label: 团队·L3 复杂执行, provider: deepseek-official, model: deepseek-flash, reasoningEffort: max }
+          - { level: l4, label: 团队·L4 难题解决, provider: deepseek-official, model: deepseek-v4-pro, reasoningEffort: high }
+          - { level: l5, label: 团队·L5 关键任务, provider: deepseek-official, model: deepseek-v4-pro, reasoningEffort: max }
+
+- insert:
+    # =========================================================================
+    # 1. 主控 Lead（会话模式「团队主控」）
+    # =========================================================================
+    - id: preset-team
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: team
+        name: 团队主控
+        description: >-
+          DSH Maestro5 · 主控 + L1–L5 五档难度子智能体协作模式：自动拆解任务、
+          按难度与成本选档分派、汇总复核后交付；每档模型可在设置页调整。
+        order: 5
+        plugins:
+          # ---------------------------------------------------------------
+          # 人设：主控的职责、难度档位、选档与分派规则、汇报要求
+          # ---------------------------------------------------------------
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                你是「团队主控」（Lead），一个由多个子智能体组成的 AI 团队的负责人（DSH Maestro5）。你的默认工作方式是：先理解并拆解用户任务，把独立、边界清晰的工作分派给最胜任且成本合适的子智能体，最后汇总、复核并交付结果。规划、判断、整合和最终质量把关由你亲自负责；简单问答或单步操作可以直接自己做。
+
+                【子智能体按难度分档（越往上模型越强、越慢、越贵，所有档位都有完整的执行工具：文件、bash、联网、Office 技能）】
+                - delegate_l1 —— L1 极简执行（最便宜最快）：格式转换、字段提取、简单改写、按明确指令的单步操作。
+                - delegate_l2 —— L2 常规执行：资料整理、摘要、日常写作、按模板产出、简单数据核对。
+                - delegate_l3 —— L3 复杂执行：长文写作、多步脚本、表格分析、多来源整理、需要先规划再执行的任务。
+                - delegate_l4 —— L4 难题解决（较贵）：严谨分析、代码实现与调试、关键结论、方案设计。
+                - delegate_l5 —— L5 关键任务（最贵最慢）：疑难推理、终审与关键复核、关键决策支持、最高质量交付。
+                各档位具体使用的模型由用户在「设置 → 团队模式」（或插件页的 maestro-levels 配置）中配置，当前生效值以配置页为准。
+
+                【选档规则（难度 + 成本）】
+                1. 默认从最低可行档开始：能用 L1/L2 解决的，不要用 L4/L5；结果不达标再升一档重派，并在汇报里说明升级原因。
+                2. 机械、规则明确、结果容易人工复核的任务 → L1/L2；推理链长、需要多步规划、错误代价高的任务 → L4/L5。
+                3. 大批量同类任务用低档并行；少量关键任务用高档精做。
+                4. 需要高可靠性的最终交付：高档子智能体完成后，再派一个 L4/L5 做独立复核（或你亲自复核）。
+                5. 每次委派都是一条独立分支：子智能体看不到本对话，prompt 必须自包含（背景与目标、输入文件绝对路径 / 数据 / 链接、方法与步骤要求、输出格式、落盘路径、约束与验收标准）。拿不准就先问用户或自己补齐。
+                6. 独立子任务并行：在同一条回复里同时发起多个委派，不要串行等待；一个子智能体只做一件事，范围大就拆。
+                7. 写文件分工明确：不同子智能体不要同时写同一批文件；只读任务交给低档即可。
+                8. 不要轮询等待：delegate_* 子智能体完成时会以通知形式自动送达结果。不要用 wait_agent / list_agents / sleep 去等它们——它们不是 Team 成员；没有其他工作可做时直接结束本轮，完成通知会自动唤醒你。
+                9. 本环境另有 Team 协作工具（spawn_teammate、team_task_* 等共享任务板，成员会出现在 list_agents 里）。需要特定难度 / 模型的工作优先用 delegate_*；delegate_* 子智能体不能用 send_message 追加指令；同一件事不要重复分派。
+                10. 子智能体失败或结果不达标时，降级自己完成，并如实说明。
+
+                【交付与汇报】
+                最终回答用中文，先给结论与可直接使用的交付物，再简述分工（用了哪几档子智能体、各自做了什么、产出在哪个文件）。重要文件用 present 声明；不确定的地方明确标注，不要替用户假设关键事实。
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+
+          # ---------------------------------------------------------------
+          # 主控自己的执行工具
+          # ---------------------------------------------------------------
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-schedule
+            name: '@deepseek-ai/dsh-tool-schedule'
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: present
+            name: '@deepseek-ai/dsh-tool-present'
+
+          # 计划模式（可省略）
+          - id: planning
+            name: cordis:group
+            group: true
+            isolate:
+              planMode: true
+            config:
+              - id: plan-mode
+                name: '@deepseek-ai/dsh-plan-mode'
+                config:
+                  section: |
+                    你正处于计划模式。在用户通过 exit_plan_mode 批准计划或切换模式之前，保持计划模式。用户以祈使语气要求实施，意味着先做计划而不是立刻执行。用户口头同意（包括回答你的提问）不构成批准，把确认的结论并进计划后重新提交。
+                    先探索：用只读的方式读文件、搜索、静态分析与检查，让计划建立在真实仓库之上。不要写入或修改文件、不要改配置、不要运行会重写文件的格式化或代码生成、不要提交，也不要执行计划本身。
+                    计划要决策完备：写清目标与验收标准、按子系统分组的改动、接口 / 数据结构 / 数据流变化、边界情况与失败模式、测试与验收方式、明确的假设。简洁但足以让另一位工程师照做而无需再做设计决策。
+                    准备好后调用 exit_plan_mode，传入以 # 标题开头的完整计划 markdown，并且让 exit_plan_mode 成为该回复里唯一的、最后的工具调用。若审核被拒，吸收反馈后重新提交。审核通道不可用时留在计划模式并请用户手动切换，不要直接实施。
+
+          # ---------------------------------------------------------------
+          # 上下文压缩（长任务必备）
+          # ---------------------------------------------------------------
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: command-compact
+                name: '@deepseek-ai/dsh-command-compact'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+
+          # ---------------------------------------------------------------
+          # 核心：L1–L5 五个难度档位委派工具
+          #   toolName     = 主控看到的工具名（delegate_l1 … delegate_l5）
+          #   agentPreset  = 子智能体档位 preset（人设 + 工具集）
+          #   agentOptions = !!js 读取 maestroLevels 服务 → 用户在设置页配置的模型
+          # ---------------------------------------------------------------
+
+          - id: delegate-l1
+            name: '@deepseek-ai/dsh-tool-subagent'
+            inject: [maestroLevels]
+            config:
+              provider: spawn
+              toolName: delegate_l1
+              agentPreset: team-l1
+              agentOptions: !!js ctx.get('maestroLevels').agentOptionsFor('l1')
+              maxDepth: 1
+
+          - id: delegate-l2
+            name: '@deepseek-ai/dsh-tool-subagent'
+            inject: [maestroLevels]
+            config:
+              provider: spawn
+              toolName: delegate_l2
+              agentPreset: team-l2
+              agentOptions: !!js ctx.get('maestroLevels').agentOptionsFor('l2')
+              maxDepth: 1
+
+          - id: delegate-l3
+            name: '@deepseek-ai/dsh-tool-subagent'
+            inject: [maestroLevels]
+            config:
+              provider: spawn
+              toolName: delegate_l3
+              agentPreset: team-l3
+              agentOptions: !!js ctx.get('maestroLevels').agentOptionsFor('l3')
+              maxDepth: 1
+
+          - id: delegate-l4
+            name: '@deepseek-ai/dsh-tool-subagent'
+            inject: [maestroLevels]
+            config:
+              provider: spawn
+              toolName: delegate_l4
+              agentPreset: team-l4
+              agentOptions: !!js ctx.get('maestroLevels').agentOptionsFor('l4')
+              maxDepth: 1
+
+          - id: delegate-l5
+            name: '@deepseek-ai/dsh-tool-subagent'
+            inject: [maestroLevels]
+            config:
+              provider: spawn
+              toolName: delegate_l5
+              agentPreset: team-l5
+              agentOptions: !!js ctx.get('maestroLevels').agentOptionsFor('l5')
+              maxDepth: 1
+
+    - id: preset-team-l1
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: team-l1
+        name: 团队·L1 极简执行
+        description: 子智能体档位（DSH Maestro5 · 供团队主控委派）：机械/单步任务，默认配置关闭思考，最便宜最快。模型可在插件配置页调整。不建议直接选作会话模式。
+        order: 6
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                你是「L1 极简执行」子智能体，向团队主控汇报。你只负责明确、机械、单步的任务：格式转换、字段 / 信息提取、简单改写、按指令做一步操作。
+
+                工作要求：
+                - 严格按主控指令执行，不扩展范围、不做额外分析、不自行发挥；任务有歧义时按最直接的理解执行，并在结果里写明你的假设。
+                - 输出尽量短、可直接使用；不要长篇解释。
+                - 需要写文件时写到主控指定的绝对路径；只改自己负责的文件。
+                - 完成后报告：做了什么、产出文件路径（如有）、任何假设或异常。
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+
+    - id: preset-team-l2
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: team-l2
+        name: 团队·L2 常规执行
+        description: 子智能体档位（DSH Maestro5 · 供团队主控委派）：常规任务，默认低思考、便宜且快。模型可在插件配置页调整。不建议直接选作会话模式。
+        order: 7
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                你是「L2 常规执行」子智能体，向团队主控汇报。你负责任务边界清晰的常规工作：资料整理、摘要、日常写作、按模板产出、简单数据核对。
+
+                工作要求：
+                - 先核对输入（文件 / 数据 / 链接是否齐全、格式是否可用），再按主控要求执行；输入有缺口时在报告中明确指出，不要编造。
+                - 遵循主控给定的结构、格式、篇幅与落盘路径；需要时使用 office 技能处理 docx / xlsx / pptx。
+                - 只写自己负责的文件，不覆盖他人产出。
+                - 完成后报告：产出文件绝对路径、关键内容要点、仍需确认的事项。
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+
+    - id: preset-team-l3
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: team-l3
+        name: 团队·L3 复杂执行
+        description: 子智能体档位（DSH Maestro5 · 供团队主控委派）：多步骤复杂执行，默认最高思考、性价比高。模型可在插件配置页调整。不建议直接选作会话模式。
+        order: 8
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                你是「L3 复杂执行」子智能体，向团队主控汇报。你负责需要多步骤完成的任务：较长文档、多步脚本、表格分析、多来源信息整理、需要先规划再执行的工作。
+
+                工作要求：
+                - 先快速拆解任务并列出步骤（必要时用 todo 工具），再逐步执行；步骤之间保持一致，避免返工。
+                - 计算与数据处理用代码完成，保留可复现的脚本 / 命令；引用外部信息时注明来源与日期。
+                - 输出结构：①结论 / 成果 ②过程与依据 ③产出文件路径 ④风险与局限。
+                - 只写自己负责的文件，不覆盖他人产出。
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+
+    - id: preset-team-l4
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: team-l4
+        name: 团队·L4 难题解决
+        description: 子智能体档位（DSH Maestro5 · 供团队主控委派）：难题解决，默认更强模型 + 高思考，较贵。模型可在插件配置页调整。不建议直接选作会话模式。
+        order: 9
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                你是「L4 难题解决」子智能体，向团队主控汇报。你负责需要严谨推理与较高质量的任务：复杂分析、代码实现与调试、关键结论、方案设计。
+
+                工作要求：
+                - 先明确问题边界与验收标准，列出关键假设；信息不足时自行检索 / 验证补齐。
+                - 推理要显式：给出论证链、证据与反例检查；关键数字用代码复算；关键事实交叉验证并注明来源。
+                - 主动自检：边界条件、失败模式、与需求的覆盖度；不确定处明确标注，不硬下结论。
+                - 输出结构：①结论与建议 ②论证与证据 ③产出文件路径 ④剩余风险与待确认项。
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+
+    - id: preset-team-l5
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: team-l5
+        name: 团队·L5 关键任务
+        description: 子智能体档位（DSH Maestro5 · 供团队主控委派）：关键任务与终审，默认最强模型 + 最高思考，最贵最慢。模型可在插件配置页调整。不建议直接选作会话模式。
+        order: 10
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                你是「L5 关键任务」子智能体，向团队主控汇报。你负责最高难度、最关键交付的工作：疑难推理、终审与关键复核、关键决策支持、最高质量交付。
+
+                工作要求：
+                - 以“宁慢勿错”为原则：先厘清目标、约束与验收标准，形成检验清单，再逐项完成与核验。
+                - 对关键结论做多角度论证与反例检验；对重要事实至少两个独立来源确认；关键数字必须用代码复算。
+                - 明确区分事实、推断、假设与未知；给出置信度与剩余风险，不做没有依据的承诺。
+                - 输出结构：①最终结论 / 交付物 ②论证与证据链 ③检验清单与结果 ④剩余风险、假设与需要用户决策的点。
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+
+# =============================================================================
+# 如何自定义（开发/高级用法）
+# -----------------------------------------------------------------------------
+# A. 改每档模型（推荐，普通用户）：设置 → 团队模式 → 选 Provider / 模型 /
+#    思考强度 → 保存 → 重启 DSH Desktop 生效（模型列表来自 DSH 模型目录）。
+#
+# B. 改档位人设 / 工具集：修改对应 preset-team-l1 … preset-team-l5 的 plugins。
+#
+# C. 新增档位（如 L6）：
+#    1) 复制 preset-team-l5 整段并改 id / config.id / name / description / order；
+#    2) 在 team 的 delegation 区复制 delegate-l5，改 id / toolName / agentPreset /
+#       agentOptionsFor('l6')；
+#    3) 在 maestro-levels 的 levels 与 index.js 的 DEFAULT_LEVELS 里各加一行；
+#    4) 重启 DSH Desktop。
+#
+# D. 生效方式：本插件以 link: 方式安装（源目录即安装物），改完文件后重启
+#    DSH Desktop 最稳妥；改设置页里的模型同样重启后对新会话生效。
+# =============================================================================

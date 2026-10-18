@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest a capability, tier, or integration for DSH Maestro5
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the workflow that is awkward or impossible today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should the plugin do? If it changes settings, describe the desired UI/fields.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you tried, or other plugins that solve part of this.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Area
+      options:
+        - label: Tier presets / delegation policy
+        - label: Settings page / configuration
+        - label: Model catalog / provider support
+        - label: Documentation / screenshots
