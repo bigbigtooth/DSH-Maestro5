@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows
 
 ## [0.1.0] - 2026-10-18
 
-First public release (initial npm/GitHub release).
+First public release (GitHub release).
 
 ### Added
 
@@ -25,7 +25,7 @@ First public release (initial npm/GitHub release).
 - **Configurable five-tier defaults** persisted as a `maestro-levels` override in
   the profile's `cordis.patch.yml`.
 - English and Chinese READMEs with real UI screenshots, install instructions for
-  Web UI, npm, GitHub and local checkouts, a usage guide, architecture notes,
+  Web UI, GitHub and local checkouts, a usage guide, architecture notes,
   compatibility limits and troubleshooting.
 - Repository tooling: `npm run validate` bundle/patch checks, GitHub Actions
   workflow, issue forms and a pull-request template.

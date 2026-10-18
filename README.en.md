@@ -12,7 +12,6 @@ Install it and you get a **Team Lead** session mode plus a settings page: the Le
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/bigbigtooth/DSH-Maestro5/blob/main/LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2-informational)](https://github.com/deepseek-ai/deepseek-harness)
-[![npm](https://img.shields.io/badge/npm-dsh--maestro5-cb3837?logo=npm&logoColor=white)](https://www.npmjs.com/package/dsh-maestro5)
 [![release](https://img.shields.io/github/v/release/bigbigtooth/DSH-Maestro5?label=release)](https://github.com/bigbigtooth/DSH-Maestro5/releases/latest)
 [![validate](https://github.com/bigbigtooth/DSH-Maestro5/actions/workflows/validate.yml/badge.svg)](https://github.com/bigbigtooth/DSH-Maestro5/actions/workflows/validate.yml)
 [![dsh-plugin](https://img.shields.io/badge/topic-dsh--plugin-2f6feb)](https://github.com/topics/dsh-plugin)
@@ -70,18 +69,11 @@ Install it and you get a **Team Lead** session mode plus a settings page: the Le
 
 ### Install
 
-Pick one. All four install the same bundle.
+Pick one. All three install the same bundle.
 
-**A. Web UI:** sidebar **Plugins → Add plugin ▾ → Install a third-party plugin** → enter `dsh-maestro5` or an absolute local path → install → **reload the page**.
+**A. Web UI:** sidebar **Plugins → Add plugin ▾ → Install a third-party plugin** → enter an absolute local path → install → **reload the page**.
 
-**B. npm (once published):**
-
-```sh
-dsh plugin --profile desktop add dsh-maestro5   # DSH Desktop profile is "desktop"
-dsh plugin --profile web add dsh-maestro5       # standalone dsh web profile
-```
-
-**C. GitHub:**
+**B. GitHub:**
 
 ```sh
 # from the repository
@@ -91,7 +83,7 @@ dsh plugin --profile desktop add github:bigbigtooth/DSH-Maestro5
 dsh plugin --profile desktop add https://github.com/bigbigtooth/DSH-Maestro5/releases/latest/download/dsh-maestro5-0.1.0.tgz
 ```
 
-**D. Local checkout (development):**
+**C. Local checkout (development):**
 
 ```sh
 dsh plugin --profile desktop add /path/to/DSH-Maestro5
@@ -264,14 +256,20 @@ dsh plugin --profile desktop remove dsh-maestro5
 
 Or **Plugins → DSH Maestro5 → Uninstall**. The six presets and the settings row are removed; restart and the mode disappears.
 
-## Publishing (maintainers)
+## Publishing a release (maintainers)
+
+This plugin is **not published to npm**; it ships as a GitHub Release bundle:
+
+1. Update the READMEs / `CHANGELOG.md` and the `version` in `package.json`;
+2. Build the bundle tarball (`npm pack` or `pnpm pack`) to get `dsh-maestro5-<version>.tgz`;
+3. Create the GitHub Release and upload the tarball:
 
 ```sh
-npm login
-npm publish            # package name: dsh-maestro5
+gh release create v<version> dsh-maestro5-<version>.tgz \
+  --title "DSH Maestro5 v<version>" --notes-file RELEASE_NOTES.md
 ```
 
-Before publishing: `npm pack --dry-run`, confirm `engines.dsh` matches the target DSH, and add the repo topic [`dsh-plugin`](https://github.com/topics/dsh-plugin).
+Before releasing: confirm `files` includes `index.js`, `client.js`, `cordis.patch.yml`, `locale/*.json` and `icon.svg`, and that `engines.dsh` matches the target DSH.
 
 ## Community
 

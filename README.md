@@ -12,7 +12,6 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/bigbigtooth/DSH-Maestro5/blob/main/LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2-informational)](https://github.com/deepseek-ai/deepseek-harness)
-[![npm](https://img.shields.io/badge/npm-dsh--maestro5-cb3837?logo=npm&logoColor=white)](https://www.npmjs.com/package/dsh-maestro5)
 [![release](https://img.shields.io/github/v/release/bigbigtooth/DSH-Maestro5?label=release)](https://github.com/bigbigtooth/DSH-Maestro5/releases/latest)
 [![validate](https://github.com/bigbigtooth/DSH-Maestro5/actions/workflows/validate.yml/badge.svg)](https://github.com/bigbigtooth/DSH-Maestro5/actions/workflows/validate.yml)
 [![dsh-plugin](https://img.shields.io/badge/topic-dsh--plugin-2f6feb)](https://github.com/topics/dsh-plugin)
@@ -70,29 +69,16 @@
 
 ### 安装
 
-四种方式任选一种，装完都得到同一个 bundle。
+三种方式任选一种，装完都得到同一个 bundle。
 
 #### 方式 A：Web 界面（最直观）
 
 1. 侧栏 **插件（Plugins）** → 右上角 **添加插件 ▾** → **安装第三方插件**；
-2. 输入 npm 包名（`dsh-maestro5`）或本地目录绝对路径，确认安装；
+2. 输入本地目录绝对路径，确认安装；
 3. **刷新页面**（`Cmd+R` / `Ctrl+R`）加载浏览器端配置页；
 4. 新建任务，模式选择器里应出现 **「团队主控」**。
 
-#### 方式 B：npm（推荐，发布后可用）
-
-```sh
-# 桌面版（DSH Desktop 的 profile 名字是 desktop）
-dsh plugin --profile desktop add dsh-maestro5
-
-# 独立 Web 版（dsh web）
-dsh plugin --profile web add dsh-maestro5
-```
-
-> 桌面版如果提示找不到 `dsh` 命令，可在菜单栏用 **Manage dsh command** 把它装进 PATH（不同版本入口可能略有差异）。
-> 安装完成后**重启 DSH**（bundle 层在启动时组装）；至少刷新页面以加载客户端半。
-
-#### 方式 C：直接从 GitHub 安装
+#### 方式 B：从 GitHub 安装
 
 ```sh
 # 源码安装（跟随 main 分支）
@@ -102,7 +88,10 @@ dsh plugin --profile desktop add github:bigbigtooth/DSH-Maestro5
 dsh plugin --profile desktop add https://github.com/bigbigtooth/DSH-Maestro5/releases/latest/download/dsh-maestro5-0.1.0.tgz
 ```
 
-#### 方式 D：本地目录（开发态）
+> 桌面版如果提示找不到 `dsh` 命令，可在菜单栏用 **Manage dsh command** 把它装进 PATH（不同版本入口可能略有差异）。
+> 安装完成后**重启 DSH**（bundle 层在启动时组装）；至少刷新页面以加载客户端半。
+
+#### 方式 C：本地目录（开发态）
 
 ```sh
 dsh plugin --profile desktop add /path/to/DSH-Maestro5
@@ -312,19 +301,22 @@ dsh plugin --profile desktop remove dsh-maestro5   # 或 --profile web
 
 Web 界面：**插件 → DSH Maestro5 → 卸载**。卸载会同时移除它注册的 6 个 preset 与设置行；重启后「团队主控」从模式选择器消失。
 
-## 发布到 npm（维护者）
+## 发布新版本（维护者）
+
+本插件**不发布到 npm**，只通过 GitHub Release 分发打包文件：
+
+1. 更新 `README` / `CHANGELOG.md` 与 `package.json` 的 `version`；
+2. 生成 bundle 打包文件（`npm pack` 或 `pnpm pack`），得到 `dsh-maestro5-<version>.tgz`；
+3. 创建 GitHub Release 并上传该文件：
 
 ```sh
-npm login
-npm publish            # 包名 dsh-maestro5，公开
+gh release create v<version> dsh-maestro5-<version>.tgz \
+  --title "DSH Maestro5 v<version>" --notes-file RELEASE_NOTES.md
 ```
 
-发布前检查：
+发布前检查：`package.json` 的 `files` 已包含 `index.js`、`client.js`、`cordis.patch.yml`、`locale/*.json`、`icon.svg`；`engines.dsh` 与目标 DSH 版本匹配。
 
-- `package.json` 的 `files` 已包含 `index.js`、`client.js`、`cordis.patch.yml`、`locale/*.json`、`icon.svg`；
-- `engines.dsh` 与目标 DSH 版本匹配；
-- `npm pack --dry-run` 预览打包内容；
-- 发布后在 README 顶部替换 npm 版本徽章的可用性，并提交到 [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)。
+> 仓库也欢迎提交到 [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) 等收录列表。
 
 ## 社区与收录
 
