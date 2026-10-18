@@ -13,6 +13,7 @@ Install it and you get a **Team Lead** session mode plus a settings page: the Le
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/bigbigtooth/DSH-Maestro5/blob/main/LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2-informational)](https://github.com/deepseek-ai/deepseek-harness)
 [![npm](https://img.shields.io/npm/v/dsh-maestro5?label=npm)](https://www.npmjs.com/package/dsh-maestro5)
+[![release](https://img.shields.io/github/v/release/bigbigtooth/DSH-Maestro5?label=release)](https://github.com/bigbigtooth/DSH-Maestro5/releases/latest)
 [![validate](https://github.com/bigbigtooth/DSH-Maestro5/actions/workflows/validate.yml/badge.svg)](https://github.com/bigbigtooth/DSH-Maestro5/actions/workflows/validate.yml)
 [![dsh-plugin](https://img.shields.io/badge/topic-dsh--plugin-2f6feb)](https://github.com/topics/dsh-plugin)
 [![Platform](https://img.shields.io/badge/profile-web%20%7C%20desktop-lightgrey)](#compatibility)
